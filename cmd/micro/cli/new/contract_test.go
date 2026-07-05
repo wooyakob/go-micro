@@ -154,6 +154,16 @@ func (g generatedService) replaceModule(t *testing.T) {
 	if err := os.WriteFile(modPath, []byte(modText), 0644); err != nil {
 		t.Fatal(err)
 	}
+
+	// The replace directive can point go.mod at a dependency graph the
+	// earlier `go mod tidy` (run against the placeholder version) never
+	// saw — e.g. this checkout adding a new go-micro.dev/v6 dependency.
+	// Re-tidy so go.sum matches before build shells out to `go build`.
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = g.dir
+	if out, err := tidy.CombinedOutput(); err != nil {
+		t.Fatalf("go mod tidy after replace failed: %v\n%s", err, out)
+	}
 }
 
 func (g generatedService) build(t *testing.T) {

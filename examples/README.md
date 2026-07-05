@@ -104,6 +104,14 @@ before the run can continue.
 Local-model agent wiring for developers experimenting with Ollama-backed model
 calls.
 
+#### [couchbase-agent-harness](./couchbase-agent-harness/)
+An agent whose entire harness — tools, prompts, traces, memory, and the LLM
+itself — is backed by Couchbase via the `couchbase/*` packages:
+- **catalog** — tools and prompts registered in code, content-hash versioned, embedded, and synced to Couchbase for semantic (vector) lookup
+- **trace** — every `agent.run` / `agent.tool.call` span exported straight into a Couchbase collection
+- **memory** — conversation state and long-term semantic recall persisted in Couchbase
+- **model** — the LLM and its embeddings served by Couchbase's hosted Model Service
+
 ### 3. Workflows — coordinate longer-running work
 
 #### [support](./support/)

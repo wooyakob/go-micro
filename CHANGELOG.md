@@ -16,6 +16,9 @@ next version when it ships.
 
 ## [Unreleased]
 
+### Added
+- **Couchbase agent harness** — a new `couchbase/` package family for building agents that run entirely on Couchbase: content-hash-versioned tool/prompt catalog with semantic (FTS vector) search (`couchbase/catalog`, the Go counterpart to Couchbase's Python `agentc`), an OpenTelemetry span exporter so every `agent.run`/`agent.tool.call`/`agent.model.call` span lands in Couchbase (`couchbase/trace`), `agent.Memory`/`agent.MemoryRecall` backed by Couchbase with long-term semantic recall (`couchbase/memory`), a scored eval runner with regression history (`couchbase/eval`), an `ai.Model` and embeddings client for Couchbase's hosted Model Service (`couchbase/model`), and a `harness.Harness` that wires all of it into one `agent.Agent` (`couchbase/harness`). See `couchbase/README.md` and `examples/couchbase-agent-harness/`.
+
 ## [6.3.14] - July 2026
 
 ### Added

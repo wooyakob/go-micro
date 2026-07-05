@@ -43,6 +43,7 @@ go-micro/
 ├── cmd/micro/      # CLI tool (run, deploy, mcp, build, server)
 ├── codec/          # Message codecs (JSON, Proto)
 ├── config/         # Dynamic config (env, file, etcd, NATS)
+├── couchbase/      # Couchbase-backed agent harness (catalog, trace, memory, eval, model)
 ├── errors/         # Error handling
 ├── events/         # Event system (NATS JetStream)
 ├── flow/           # Event-driven LLM orchestration
