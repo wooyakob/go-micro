@@ -2,6 +2,7 @@ package trace
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -67,5 +68,34 @@ func TestExporterAndStore(t *testing.T) {
 	}
 	if len(recent) != 1 {
 		t.Fatalf("expected 1 recent span, got %d", len(recent))
+	}
+}
+
+func TestStorePropagatesNonNotFoundErrors(t *testing.T) {
+	ctx := context.Background()
+	cluster := couchbasetest.New("agents")
+	exporter, err := NewExporter(cluster)
+	if err != nil {
+		t.Fatalf("NewExporter: %v", err)
+	}
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+	defer func() { _ = tp.Shutdown(ctx) }()
+
+	_, span := tp.Tracer("test").Start(ctx, "agent.run")
+	traceID := span.SpanContext().TraceID().String()
+	spanID := span.SpanContext().SpanID().String()
+	span.End()
+
+	boom := errors.New("boom: transient network failure")
+	cluster.InjectGetError(DefaultScope, DefaultCollection, traceID+"/"+spanID, boom)
+
+	store := NewStore(cluster)
+	if _, err := store.Trace(ctx, traceID); !errors.Is(err, boom) {
+		t.Fatalf("Trace error = %v, want %v", err, boom)
+	}
+
+	cluster.InjectGetError(DefaultScope, DefaultCollection, traceID+"/"+spanID, boom)
+	if _, err := store.Recent(ctx, 0); !errors.Is(err, boom) {
+		t.Fatalf("Recent error = %v, want %v", err, boom)
 	}
 }

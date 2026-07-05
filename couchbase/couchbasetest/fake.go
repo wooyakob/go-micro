@@ -20,10 +20,11 @@ import (
 
 // Cluster is an in-memory couchbase.Cluster.
 type Cluster struct {
-	mu      sync.Mutex
-	bucket  string
-	docs    map[string]map[string][]byte
-	indexes map[string]vectorIndex
+	mu        sync.Mutex
+	bucket    string
+	docs      map[string]map[string][]byte
+	indexes   map[string]vectorIndex
+	getErrors map[string]error
 }
 
 type vectorIndex struct {
@@ -52,6 +53,19 @@ func (c *Cluster) EnsureScope(string) error { return nil }
 
 // EnsureCollection is a no-op.
 func (c *Cluster) EnsureCollection(string, string) error { return nil }
+
+// InjectGetError makes the next Get for scope.collection/id fail with err,
+// instead of returning the document normally (or ErrNotFound). Use it to
+// exercise error-propagation paths — a transient network failure, for
+// example — that a missing document alone can't simulate.
+func (c *Cluster) InjectGetError(scope, collectionName, id string, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.getErrors == nil {
+		c.getErrors = make(map[string]error)
+	}
+	c.getErrors[scope+"."+collectionName+"/"+id] = err
+}
 
 // EnsurePrimaryIndex is a no-op; List always scans in-memory.
 func (c *Cluster) EnsurePrimaryIndex(string, string) error { return nil }
@@ -163,6 +177,10 @@ type fakeCollection struct {
 func (f *fakeCollection) Get(_ context.Context, id string) ([]byte, error) {
 	f.c.mu.Lock()
 	defer f.c.mu.Unlock()
+	if err, ok := f.c.getErrors[f.key+"/"+id]; ok {
+		delete(f.c.getErrors, f.key+"/"+id)
+		return nil, err
+	}
 	v, ok := f.c.docs[f.key][id]
 	if !ok {
 		return nil, couchbase.ErrNotFound

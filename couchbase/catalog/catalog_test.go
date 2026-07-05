@@ -184,6 +184,31 @@ func TestByQueryWithoutEmbedderErrors(t *testing.T) {
 	}
 }
 
+func TestByQueryWithEmptyEmbeddingErrorsInsteadOfPanicking(t *testing.T) {
+	ctx := context.Background()
+	cluster := couchbasetest.New("agents")
+	// Returns a normal vector for Sync's tool-description embed call, but an
+	// empty result for the specific query text used below, isolating the
+	// find() code path from Sync's own embedding.
+	embedder := embedFunc(func(_ context.Context, texts ...string) ([][]float32, error) {
+		if len(texts) == 1 && texts[0] == "empty query" {
+			return nil, nil
+		}
+		out := make([][]float32, len(texts))
+		for i := range texts {
+			out[i] = []float32{1, 0}
+		}
+		return out, nil
+	})
+	c := New(cluster, embedder)
+	must(t, c.RegisterTool(ToolSpec{Name: "t", Description: "d", Handler: testHandler}))
+	must(t, c.Sync(ctx))
+
+	if _, err := c.FindTools(ctx, ByQuery("empty query")); err == nil {
+		t.Error("expected an error when the embedder returns no vectors for the query")
+	}
+}
+
 func TestToolsDispatchesToRegisteredHandler(t *testing.T) {
 	ctx := context.Background()
 	cluster := couchbasetest.New("agents")

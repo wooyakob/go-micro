@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sort"
 
 	"go-micro.dev/v6/couchbase"
@@ -31,7 +32,10 @@ func (s *Store) Trace(ctx context.Context, traceID string) ([]Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	records := s.fetchAll(ctx, col, ids)
+	records, err := s.fetchAll(ctx, col, ids)
+	if err != nil {
+		return nil, err
+	}
 	sort.Slice(records, func(i, j int) bool { return records[i].StartTime.Before(records[j].StartTime) })
 	return records, nil
 }
@@ -47,7 +51,10 @@ func (s *Store) Recent(ctx context.Context, limit int) ([]Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	records := s.fetchAll(ctx, col, ids)
+	records, err := s.fetchAll(ctx, col, ids)
+	if err != nil {
+		return nil, err
+	}
 	sort.Slice(records, func(i, j int) bool { return records[i].StartTime.After(records[j].StartTime) })
 	if limit > 0 && len(records) > limit {
 		records = records[:limit]
@@ -55,18 +62,21 @@ func (s *Store) Recent(ctx context.Context, limit int) ([]Record, error) {
 	return records, nil
 }
 
-func (s *Store) fetchAll(ctx context.Context, col couchbase.Collection, ids []string) []Record {
+func (s *Store) fetchAll(ctx context.Context, col couchbase.Collection, ids []string) ([]Record, error) {
 	records := make([]Record, 0, len(ids))
 	for _, id := range ids {
 		raw, err := col.Get(ctx, id)
 		if err != nil {
-			continue
+			if errors.Is(err, couchbase.ErrNotFound) {
+				continue
+			}
+			return nil, err
 		}
 		var r Record
 		if err := json.Unmarshal(raw, &r); err != nil {
-			continue
+			return nil, err
 		}
 		records = append(records, r)
 	}
-	return records
+	return records, nil
 }

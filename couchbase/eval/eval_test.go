@@ -92,6 +92,33 @@ func TestRunnerPersistsAndHistory(t *testing.T) {
 	}
 }
 
+func TestHistoryPropagatesNonNotFoundErrors(t *testing.T) {
+	ctx := context.Background()
+	cluster := couchbasetest.New("agents")
+	store, err := NewStore(cluster)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+
+	if err := store.Save(ctx, Report{Suite: "regression", Results: []Result{{Case: "c", Score: 1}}}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Save leaves a random UUID suffix on the doc ID, so find it via List
+	// (through the same collection name Store uses) to inject the failure.
+	ids, err := cluster.Collection(DefaultScope, reportsCollection).List(ctx, "regression/")
+	if err != nil || len(ids) != 1 {
+		t.Fatalf("expected exactly 1 saved report id, got %v (err=%v)", ids, err)
+	}
+
+	boom := errors.New("boom: transient network failure")
+	cluster.InjectGetError(DefaultScope, reportsCollection, ids[0], boom)
+
+	if _, err := store.History(ctx, "regression", 0); !errors.Is(err, boom) {
+		t.Fatalf("History error = %v, want %v", err, boom)
+	}
+}
+
 type fakeJudgeModel struct{ reply string }
 
 func (m fakeJudgeModel) Init(...ai.Option) error { return nil }

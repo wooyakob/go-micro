@@ -111,7 +111,8 @@ func New(opts ...Option) (*Harness, error) {
 	}
 
 	cluster := o.cluster
-	if cluster == nil {
+	ownsCluster := cluster == nil
+	if ownsCluster {
 		if len(o.connectOpts) == 0 {
 			return nil, errors.New("harness: WithCluster or WithConnect is required")
 		}
@@ -120,6 +121,11 @@ func New(opts ...Option) (*Harness, error) {
 			return nil, fmt.Errorf("harness: connect: %w", err)
 		}
 		cluster = c
+	}
+	closeClusterOnErr := func() {
+		if ownsCluster {
+			_ = cluster.Close()
+		}
 	}
 
 	var catalogEmbedder catalog.Embedder
@@ -130,12 +136,15 @@ func New(opts ...Option) (*Harness, error) {
 
 	exporter, err := trace.NewExporter(cluster, o.traceOpts...)
 	if err != nil {
+		closeClusterOnErr()
 		return nil, fmt.Errorf("harness: trace exporter: %w", err)
 	}
 	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
 
 	evalStore, err := eval.NewStore(cluster)
 	if err != nil {
+		_ = tp.Shutdown(context.Background())
+		closeClusterOnErr()
 		return nil, fmt.Errorf("harness: eval store: %w", err)
 	}
 

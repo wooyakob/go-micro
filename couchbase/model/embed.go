@@ -98,7 +98,10 @@ func (e *Embedder) Embed(ctx context.Context, texts ...string) ([][]float32, err
 	}
 	defer httpResp.Body.Close()
 
-	respBody, _ := io.ReadAll(httpResp.Body)
+	respBody, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("model: read embeddings response body: %w", err)
+	}
 	if httpResp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("model: embeddings API error (%s): %s", httpResp.Status, string(respBody))
 	}

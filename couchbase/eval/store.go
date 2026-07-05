@@ -3,6 +3,7 @@ package eval
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -77,11 +78,14 @@ func (s *Store) History(ctx context.Context, suite string, limit int) ([]Report,
 	for _, id := range ids {
 		raw, err := col.Get(ctx, id)
 		if err != nil {
-			continue
+			if errors.Is(err, couchbase.ErrNotFound) {
+				continue
+			}
+			return nil, err
 		}
 		var r Report
 		if err := json.Unmarshal(raw, &r); err != nil {
-			continue
+			return nil, err
 		}
 		reports = append(reports, r)
 	}

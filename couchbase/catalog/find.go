@@ -115,6 +115,9 @@ func (c *Catalog) find(ctx context.Context, collectionName, index string, opts .
 		if err != nil {
 			return nil, fmt.Errorf("catalog: embed query: %w", err)
 		}
+		if len(vectors) == 0 {
+			return nil, errors.New("catalog: embed query returned no vectors")
+		}
 		overfetch := o.limit * 4
 		if overfetch < o.limit {
 			overfetch = o.limit

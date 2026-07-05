@@ -102,6 +102,7 @@ func Connect(opts ...Option) (Cluster, error) {
 
 	bucket := cl.Bucket(options.Bucket)
 	if err := bucket.WaitUntilReady(options.ConnectTimeout, nil); err != nil {
+		_ = cl.Close(nil)
 		return nil, fmt.Errorf("couchbase: bucket %q not ready: %w", options.Bucket, err)
 	}
 

@@ -127,9 +127,9 @@ func (m *Memory) Add(role, content string) {
 	m.mu.Lock()
 	m.hist.Add(role, content)
 	msgs := append([]ai.Message(nil), m.hist.Messages()...)
+	m.saveSession(ctx, msgs)
 	m.mu.Unlock()
 
-	m.saveSession(ctx, msgs)
 	m.archive(ctx, role, content)
 }
 
@@ -144,8 +144,8 @@ func (m *Memory) Messages() []ai.Message {
 // searches is left intact.
 func (m *Memory) Clear() {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.hist.Reset()
-	m.mu.Unlock()
 	_ = m.cluster.Collection(m.scope, sessionsCollection).Remove(context.Background(), m.key)
 }
 

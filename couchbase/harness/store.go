@@ -161,11 +161,14 @@ func (s *cbStore) Read(key string, opts ...store.ReadOption) ([]*store.Record, e
 	for _, id := range ids {
 		raw, err := col.Get(ctx, id)
 		if err != nil {
-			continue
+			if errors.Is(err, couchbase.ErrNotFound) {
+				continue
+			}
+			return nil, err
 		}
 		rec, err := decodeRecord(id, raw)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		records = append(records, rec)
 	}
